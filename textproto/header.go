@@ -485,13 +485,18 @@ func trimAroundNewlines(v []byte) string {
 
 const (
 	maxHeaderLines = 1000
-	maxLineOctets  = 4000
+	maxLineOctets  = 8000
 )
 
 // ReadHeader reads a MIME header from r. The header is a sequence of possibly
 // continued Key: Value lines ending in a blank line.
 func ReadHeader(r *bufio.Reader) (Header, error) {
 	fs := make([]*headerField, 0, 32)
+
+	// Don't fail on old-school messages that (mistakenly) contain a BSD mbox envelope sender.
+	if buf, err := r.Peek(5); err == nil && bytes.Equal(buf, []byte("From ")) {
+		_, _ = readLineSlice(r, nil)
+	}
 
 	// The first line cannot start with a leading space.
 	if buf, err := r.Peek(1); err == nil && isSpace(buf[0]) {
